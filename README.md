@@ -18,10 +18,10 @@
 <table>
 <tr><th align="center">验证</th><th align="center">样例</th><th align="center">请求</th><th align="center">阶段</th></tr>
 <tr>
-<td align="center"><b>13</b><br/>本地软件检查通过</td>
-<td align="center"><b>8</b><br/>人工构造软件样例</td>
-<td align="center"><b>112</b><br/>已准备，未执行模型</td>
-<td align="center"><b>Pilot preparation</b><br/>真实数据验证前</td>
+<td align="center"><b>13</b><br/>本地测试通过</td>
+<td align="center"><b>8</b><br/>软件样例</td>
+<td align="center"><b>112</b><br/>待执行请求</td>
+<td align="center"><b>准备阶段</b><br/>未运行模型</td>
 </tr>
 </table>
 
@@ -40,22 +40,22 @@
 ## 02 · 从网页证据到可核对的答案
 
 ```mermaid
-flowchart LR
-    A["问题 + 固定网页快照"] --> B["原文句子与来源 ID"]
-    B --> C["相关性分数"]
-    B --> D["预测适用依赖"]
-    C --> E["依赖闭包 + 预算选择"]
-    D --> E
-    E --> F["压缩后的原文证据"]
-    F -. "后端待接入" .-> G["答案模型"]
-    G -.-> H["答案与引用评分"]
-    H --> I["成对比较 + 分簇统计"]
+flowchart TB
+    subgraph PACK["01 · 证据选择 / 已实现"]
+      direction LR
+      A["问题与快照<br/>句子 + 来源 ID"] --> B["分数 + 依赖<br/>闭包预算选择"] --> C["压缩原文<br/>保留来源"]
+    end
+    subgraph EVAL["02 · 生成与评估"]
+      direction LR
+      D["答案模型<br/>后端待接入"] -.-> E["答案与引用<br/>导入评分"] --> F["成对比较<br/>分簇统计"]
+    end
+    PACK --> EVAL
     classDef input fill:#edf4ff,stroke:#7aa0d2,color:#173354
     classDef method fill:#e4f7f1,stroke:#42a88a,color:#135d4b
     classDef pending fill:#fff5dd,stroke:#d5a64c,color:#70521c
-    class A,B input
-    class C,D,E,F,H,I method
-    class G pending
+    class A input
+    class B,C,E,F method
+    class D pending
 ```
 
 | 已实现 | 还需验证 / 开发 |
