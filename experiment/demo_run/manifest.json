@@ -1,0 +1,10 @@
+{
+  "status": "PREPARED_NOT_EXECUTED",
+  "data_sha256": "f4ff828f6ac4d19ef54cd585907d0ee21ff4c9377d98f248a5274838e1debc9e",
+  "prototype_sha256": "f16923d90e4f92b8674007e22970108d95dd8d5c47daf0e4c06124c0a530b08e",
+  "requests": 112,
+  "samples": 8,
+  "budget_unit": "regex_units_NOT_LLM_TOKENS",
+  "tokenizer_path": null,
+  "warning": "Regex units cannot support token-efficiency claims. No LLM scores exist."
+}
