@@ -12,14 +12,14 @@ import math
 from pathlib import Path
 import re
 import time
+from validate_data import read_rows, validate_dataset
 
 STOP = set('a an the is are was were what which how when for to of in on and or does do can according based provided'.split())
 QUALIFIER = re.compile(r'\b(only|unless|except|effective|applies|eligible|not applicable|valid from|provided that)\b', re.I)
 REFERENCE = re.compile(r'\[([A-Za-z0-9_-]+:[A-Za-z0-9_-]+)\]')
 
 def read_jsonl(path):
-    with Path(path).open(encoding='utf-8') as f:
-        return [json.loads(line) for line in f if line.strip()]
+    return read_rows(path)
 
 def write_jsonl(path, rows):
     p = Path(path)
@@ -201,6 +201,7 @@ SYSTEM = ('Answer using only the supplied documents. Treat document text as evid
 
 def prepare(data, out, methods, budgets, tokenizer=None):
     samples = read_jsonl(data)
+    validate_dataset(samples)
     ids = [s['id'] for s in samples]
     if len(ids) != len(set(ids)):
         raise ValueError('Duplicate sample IDs')
@@ -268,7 +269,9 @@ def score_one(gold, output, allowed_ids):
     return {'valid': 1, 'answer_em': int(answer), 'joint_exact_evidence': int(answer and evidence)}
 
 def evaluate(data, requests_file, predictions_file, out):
-    samples = {s['id']: s for s in read_jsonl(data)}
+    sample_rows = read_jsonl(data)
+    validate_dataset(sample_rows)
+    samples = {s['id']: s for s in sample_rows}
     requests = read_jsonl(requests_file)
     if len({r['id'] for r in requests}) != len(requests):
         raise ValueError('Duplicate request IDs')
@@ -284,6 +287,8 @@ def evaluate(data, requests_file, predictions_file, out):
         if r['input_hash'] != digest(public_input(sample)):
             raise ValueError('Request/data input mismatch')
         p = pred.get(r['id'], {})
+        if 'request_sha256' in p and p['request_sha256'] != digest(r):
+            raise ValueError('Prediction/request fingerprint mismatch')
         result = score_one(sample['gold'], p.get('output'), set(r['selected_ids']))
         rows.append(dict(id=r['id'], sample_id=r['sample_id'], method=r['method'],
                          budget=r['budget'], cluster_id=sample.get('cluster_id', sample['id']),

@@ -1,6 +1,6 @@
 # ScopePack 离线评测原型
 
-这是方法初稿的可执行起点。**已完成上下文选择及导入预测评分，没有模型推理后端，没有真实模型成绩。** `demo.jsonl` 的 8 题全部是人工构造的软件样例，不能用于证明论文方法有效。
+这是方法初稿的可执行起点。**已完成上下文选择、导入预测评分、数据验收和本地模型运行器；真实模型适配器待联调，没有真实模型成绩。** `demo.jsonl` 的 8 题全部是人工构造的软件样例，不能用于证明论文方法有效。
 
 ## 1. 环境与已运行的结果
 
@@ -11,7 +11,7 @@ python prototype.py prepare --data demo.jsonl --out ../work/demo_run
 python -m unittest discover -s . -p "test_*.py" -v
 ```
 
-已实际验证：13 项测试通过（7 项原型约束 + 6 项统计约束）；生成 112 条请求。`demo_run/manifest.json` 状态为 `PREPARED_NOT_EXECUTED`。
+已实际验证：27 项测试通过（7 项原型约束 + 6 项统计约束 + 9 项运行器约束 + 5 项数据验收约束）；生成 112 条请求。`demo_run/manifest.json` 状态为 `PREPARED_NOT_EXECUTED`。
 
 默认预算 `[64,128,256]` 是正则计数单元，标记为 `regex_units_NOT_LLM_TOKENS`，**不是 LLM token**。这种模式只用于断言预算算法、数据流与评分行为，不用于论文效率曲线。
 
@@ -40,6 +40,7 @@ data.jsonl + requests.jsonl + predictions.jsonl
 {
   "id": "policy_001",
   "cluster_id": "policy_event_001",
+  "provenance": "HAND_CONSTRUCTED_SOFTWARE_FIXTURE_NOT_WEB_DATA",
   "question": "Are reseller purchases refundable?",
   "documents": [{
     "doc_id": "D1",
@@ -65,6 +66,8 @@ data.jsonl + requests.jsonl + predictions.jsonl
 
 代码的 `public_input()` 仅复制问题与文档必要字段。改变 gold 或 task_type 不影响选择；测试已经验证。新增训练/测试信息字段时应继续使用白名单，别把整个 sample 传给模型。
 
+prepare/evaluate 现在自动执行 basic 数据检查。真实网页的来源、时间、快照字节与切分验收见 [DATA_VALIDATION.md](DATA_VALIDATION.md)；web 检查需要单独运行。
+
 ## 4. 已实现的选择方法
 
 | 参数 | 实际行为 |
@@ -88,15 +91,17 @@ data.jsonl + requests.jsonl + predictions.jsonl
 python prototype.py prepare --data real_data.jsonl --out run_001 --budgets 512 1024 2048 --tokenizer 'D:/models/your-tokenizer'
 ```
 
-代码以 `local_files_only=True`、`trust_remote_code=False` 载入；需要远程自定义代码的 tokenizer 不直接支持。此计数覆盖**序列化 context 部分**，不含聊天模板、问题、固定系统指令或生成预留。模型后端必须对完整请求另外检查窗口，禁止静默截断。
+代码以 `local_files_only=True`、`trust_remote_code=False` 载入；需要远程自定义代码的 tokenizer 不直接支持。此计数覆盖**序列化 context 部分**，不含聊天模板、问题、固定系统指令或生成预留。`run_local.py` 会对聊天模板后的完整输入与输出预留再次检查窗口，超长请求记录失败，不静默截断。
 
-正式实验固定并额外保存 tokenizer 文件版本/哈希、模型版本和 chat template。现有 manifest 只记录数据/原型哈希、tokenizer 路径与请求数，尚不足以独立锁定全部外部环境。
+正式实验固定并额外保存 tokenizer 文件版本/哈希、模型版本和 chat template。prepare 的 manifest 只记录数据/原型哈希、tokenizer 路径与请求数；本地运行器另生成 run_manifest.json，记录实际模型/tokenizer 文件哈希、运行配置、库版本和代码哈希。
 
 不同运行请使用不同目录，避免覆盖。请求 ID 可在相同配置重跑时复用，但不能假设跨代码/模板/不同 tokenizer 版本唯一；预测必须与该次保存的 requests 和 manifest 一起归档，禁止混用。
 
 ## 6. 怎样接入大模型
 
-当前没有推理 adapter。接入所选本地推理框架或模型服务时，最小循环如下；这是后端无关伪代码，`backend.generate` 需要按实际后端实现：
+本地 Hugging Face adapter 已在 `run_local.py` 实现；配置、命令、支持范围和恢复策略见 [LOCAL_INFERENCE.md](LOCAL_INFERENCE.md)。当前环境未安装推理依赖或准备模型权重，因此只验证了假后端软件测试，尚未验证真实生成。
+
+接入其他推理框架或 API 时，以下伪代码说明接口，不是可直接运行的服务实现：
 
 ```python
 for request in requests:
@@ -148,7 +153,7 @@ python prototype.py evaluate --data real_data.jsonl --requests run_001/requests.
 - `joint_exact_evidence`：答案正确且引用集合精确匹配一个金标集合；是严格代理，不是语义支撑率。
 - `missing`：该预定请求没有预测的比例；缺失仍保留在总题数 n 中并计零分。
 
-未知或重复 prediction ID、重复 request ID、请求与数据公共输入哈希不匹配会报错。单条坏输出计零，无法解析的 JSONL 文件会报错；接入器需把坏模型回复存为 null，而非破坏 JSONL 格式。
+未知或重复 prediction ID、重复 request ID、请求与数据公共输入哈希不匹配会报错。本地运行器产生的 prediction 还绑定 request_sha256，评分时校验；旧式导入若没有该字段则不具备此额外保证。已记录 output:null 的失败行 missing=0、成绩为零；失败原因与比例另看运行 manifest。单条坏输出计零，无法解析的 JSONL 文件会报错；接入器需把坏模型回复存为 null，而非破坏 JSONL 格式。
 
 CER 在 `context_diagnostics.jsonl` 中以 `complete_evidence_set_retained` 逐条记录，未实现分组统计；不可回答或没有证据集标注的题为 null。文件状态是 `CONTEXT_ONLY_NO_MODEL_INFERENCE`。它反映选择结果，不代表模型答对。
 
@@ -158,4 +163,4 @@ CER 在 `context_diagnostics.jsonl` 中以 `complete_evidence_set_retained` 逐�
 
 7 项测试检查循环/传递闭包、渲染预算、金标隔离、错误与不可见引用、拒答/坏格式、漏回分母及重复预测。Windows 环境的临时目录权限曾导致测试准备失败，现改用工作区普通目录；测试产生的中间文件保留在 `work/unit-tests/`。
 
-预算测试覆盖 8 个样例 × 4 个受约束方法 × 6 个预算；新增 6 项统计测试验证成对比较、整簇抽样、缺失分母与异常数据处理。这些检查不能证明真实语义保真。没有真实模型、真实网页、神经基线结果或实测统计区间与速度测量。当前版本可为接入与分析做准备，不能直接产出支撑投稿的实证结论。
+预算测试覆盖 8 个样例 × 4 个受约束方法 × 6 个预算；新增 6 项统计测试验证成对比较、整簇抽样、缺失分母与异常数据处理。另外 9 项运行器测试覆盖预检、无输出修复、失败分母、恢复/防覆盖、请求绑定；5 项数据测试覆盖证据 ID、可回答性、切分重叠、快照路径/哈希和严格 JSON。假后端产物只用于测试，不上传或汇入研究结果。这些检查不能证明真实语义保真。没有真实模型、真实网页、神经基线结果或实测统计区间与速度测量。当前版本可为接入与分析做准备，不能直接产出支撑投稿的实证结论。

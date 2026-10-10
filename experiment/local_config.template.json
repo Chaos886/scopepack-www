@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "backend": "huggingface_local",
+  "model_path": null,
+  "tokenizer_path": null,
+  "model_revision": null,
+  "device": "cpu",
+  "dtype": "float32",
+  "max_context_tokens": 4096,
+  "max_new_tokens": 256,
+  "seed": 2026
+}
