@@ -8,10 +8,10 @@ Python 3.10+，默认流程仅依赖标准库。在本文件所在的 `experimen
 
 ```bash
 python prototype.py prepare --data demo.jsonl --out ../work/demo_run
-python -m unittest -v test_prototype.py
+python -m unittest discover -s . -p "test_*.py" -v
 ```
 
-已实际验证：7 项测试通过；生成 112 条请求。`demo_run/manifest.json` 状态为 `PREPARED_NOT_EXECUTED`。
+已实际验证：13 项测试通过（7 项原型约束 + 6 项统计约束）；生成 112 条请求。`demo_run/manifest.json` 状态为 `PREPARED_NOT_EXECUTED`。
 
 默认预算 `[64,128,256]` 是正则计数单元，标记为 `regex_units_NOT_LLM_TOKENS`，**不是 LLM token**。这种模式只用于断言预算算法、数据流与评分行为，不用于论文效率曲线。
 
@@ -152,10 +152,10 @@ python prototype.py evaluate --data real_data.jsonl --requests run_001/requests.
 
 CER 在 `context_diagnostics.jsonl` 中以 `complete_evidence_set_retained` 逐条记录，未实现分组统计；不可回答或没有证据集标注的题为 null。文件状态是 `CONTEXT_ONLY_NO_MODEL_INFERENCE`。它反映选择结果，不代表模型答对。
 
-官方 LongBench 评分、语义引用审查、Damage/Rescue、分簇 bootstrap 和延迟曲线尚未实现，实验方案给出了定义。当前 EM 不能称作 LongBench 官方分数。
+成对差值、Damage/Rescue 和分簇 bootstrap 已在独立的 `analyze.py` 实现，见 [统计说明](ANALYSIS.md)。官方 LongBench 评分、语义引用审查和延迟曲线仍未实现。当前 EM 不能称作 LongBench 官方分数。
 
 ## 8. 检查范围与局限
 
 7 项测试检查循环/传递闭包、渲染预算、金标隔离、错误与不可见引用、拒答/坏格式、漏回分母及重复预测。Windows 环境的临时目录权限曾导致测试准备失败，现改用工作区普通目录；测试产生的中间文件保留在 `work/unit-tests/`。
 
-预算测试覆盖 8 个样例 × 4 个受约束方法 × 6 个预算；这些检查不能证明真实语义保真。没有真实模型、真实网页、神经基线、置信区间和端到端速度测量。当前版本可以验证数据流并为接入做准备，不能直接产出支撑投稿的实证结论。
+预算测试覆盖 8 个样例 × 4 个受约束方法 × 6 个预算；新增 6 项统计测试验证成对比较、整簇抽样、缺失分母与异常数据处理。这些检查不能证明真实语义保真。没有真实模型、真实网页、神经基线结果或实测统计区间与速度测量。当前版本可为接入与分析做准备，不能直接产出支撑投稿的实证结论。

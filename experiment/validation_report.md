@@ -2,6 +2,16 @@
 
 日期：2026-10-10。以下为实际执行记录，不是模型实验结果。
 
+## 后续工具更新
+
+仓库根目录运行 `python -m unittest discover -s experiment -p "test_*.py" -v`：13 tests，OK，退出码 0。包括下述 7 项原型检查与新增 6 项统计检查。
+
+统计检查覆盖已知成对差值/转移计数、整簇重采样及固定种子、缺失分母、未配对/重复/簇不匹配拒绝、零分母/单簇、矛盾分数拒绝。使用人工夹具，未生成模型成绩。
+
+`analyze.py` 已支持 JSON/Markdown 报告、差值区间、Damage/Rescue 点估计及输入/代码哈希。区间不含模型生成随机性、标注误差或多重比较校正。
+
+## 初始原型检查
+
 `python -m unittest -v test_prototype.py`：7 tests，OK，退出码 0。
 
 | 检查 | 结果 |
