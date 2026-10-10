@@ -13,12 +13,12 @@
 ---
 
 > [!IMPORTANT]
-> **研究工作稿，真实模型结果待完成。** 当前交付了方法设计、离线原型与统计工具；没有声称优于现有方法。默认样例使用正则计数单元，不能用于模型 token 效率结论。
+> **研究工作稿，真实模型结果待完成。** 当前交付了方法设计、离线原型、本地推理运行器与统计工具；没有声称优于现有方法。默认样例使用正则计数单元，不能用于模型 token 效率结论。
 
 <table>
 <tr><th align="center">验证</th><th align="center">样例</th><th align="center">请求</th><th align="center">阶段</th></tr>
 <tr>
-<td align="center"><b>13</b><br/>本地测试通过</td>
+<td align="center"><b>27</b><br/>本地测试通过</td>
 <td align="center"><b>8</b><br/>软件样例</td>
 <td align="center"><b>112</b><br/>待执行请求</td>
 <td align="center"><b>准备阶段</b><br/>未运行模型</td>
@@ -47,7 +47,7 @@ flowchart TB
     end
     subgraph EVAL["02 · 生成与评估"]
       direction LR
-      D["答案模型<br/>后端待接入"] -.-> E["答案与引用<br/>导入评分"] --> F["成对比较<br/>分簇统计"]
+      D["本地模型<br/>适配器待实测"] -.-> E["答案与引用<br/>导入评分"] --> F["成对比较<br/>分簇统计"]
     end
     PACK --> EVAL
     classDef input fill:#edf4ff,stroke:#7aa0d2,color:#173354
@@ -62,7 +62,8 @@ flowchart TB
 |---|---|
 | BM25 分数、英文规则依赖、闭包选择、来源保留 | 学习型依赖预测、真实网页解析和跨页指代 |
 | full / none / head / bm25 / neighbors / closure | Provence、LongLLMLingua、LLMLingua-2 等强基线 |
-| 预算检查、导入预测评分、缺失结果保留 | 真实 tokenizer 与模型后端、官方 benchmark 指标 |
+| 本地 HF 运行器、窗口预检、原始输出与恢复 | 真实权重联调、模型兼容性、官方 benchmark 指标 |
+| 数据结构、快照哈希及切分重叠检查 | 真实网页采集、独立标注与近重复审查 |
 | 成对差值、cluster bootstrap、Damage / Rescue | 语义引用审查、实际费用与端到端性能 |
 
 > [!NOTE]
@@ -73,6 +74,9 @@ flowchart TB
 **环境：Python 3.10+。** 默认流程只用标准库；在仓库根目录执行：
 
 ```bash
+# 检查数据结构
+python experiment/validate_data.py --data experiment/demo.jsonl
+
 # 准备上下文与模型请求，不调用模型
 python experiment/prototype.py prepare --data experiment/demo.jsonl --out work/demo_run
 
@@ -85,10 +89,10 @@ python -m unittest discover -s experiment -p "test_*.py" -v
 <details>
 <summary><b>有了真实模型输出后：评分 → 成对统计</b></summary>
 
-先按 [接口约定](experiment/README.md) 接入所选模型，将同次运行的回复保存为 `predictions.jsonl`。推理后端尚未提供；下面的命令不会生成答案，也不能在预测文件缺失时运行。
+先按 [本地模型运行指南](experiment/LOCAL_INFERENCE.md) 填写配置、预检并生成真实回复；也可按 [接口约定](experiment/README.md) 导入其他后端输出。下面的评分与统计命令只适用于已保存完整配对预测的运行，不能在预测文件缺失时运行。
 
 ```bash
-python experiment/prototype.py evaluate --data experiment/demo.jsonl --requests work/demo_run/requests.jsonl --predictions work/demo_run/predictions.jsonl --out work/evaluation
+python experiment/prototype.py evaluate --data experiment/demo.jsonl --requests work/inference_001/requests.jsonl --predictions work/inference_001/predictions.jsonl --out work/evaluation
 
 python experiment/analyze.py --scores work/evaluation/scores.jsonl --candidate closure --baseline bm25 --budget 128 --resamples 10000 --seed 2026 --out work/analysis_001
 ```
@@ -109,15 +113,19 @@ python experiment/analyze.py --scores work/evaluation/scores.jsonl --candidate c
 | **D · 正式评估** | 锁定测试集，测质量、统计区间和总成本 | 包含失败案例、未见来源和端到端开销 |
 | **E · 成稿** | 根据真实结果改写论文，核验 CFP 与 ACM 模板 | 贡献有证据，投稿规则和匿名要求满足 |
 
-直接开始：[实验操作手册](EXPERIMENT_PLAYBOOK.md) · [运行配置模板](EXPERIMENT_CONFIG.template.json) · [结果记录模板](RESULTS_TEMPLATE.md)
+直接开始：[本地模型运行指南](experiment/LOCAL_INFERENCE.md) · [可执行配置](experiment/local_config.template.json) · [数据验收](experiment/DATA_VALIDATION.md)
 
-配置模板是实验前填写的记录表，**当前程序不会自动读取它**。未填写项为 `null`，不能当作已完成的配置。
+首轮先检查模板后的总输入长度，再生成 10 条请求并评分；每条保留原始回复和失败状态。**运行器测试使用假后端验证程序行为，真实 Hugging Face 模型适配器仍待联调。**
+
+研究记录：[实验操作手册](EXPERIMENT_PLAYBOOK.md) · [实验记录模板](EXPERIMENT_CONFIG.template.json) · [结果记录模板](RESULTS_TEMPLATE.md)
+
+根目录的 `EXPERIMENT_CONFIG.template.json` 是实验记录表，程序不会读取；`experiment/local_config.template.json` 则由本地运行器读取。未填写项为 `null`，不能当作已完成的配置。
 
 ## 05 · 证据状态
 
 | 检查层 | 当前证据 | 结论范围 |
 |---|---|---|
-| 软件层 | 13 项本地检查通过 | 支持实现约束；不是模型能力分数 |
+| 软件层 | 27 项本地检查通过 | 支持实现约束；不是模型能力分数 |
 | 输入层 | 8 个软件样例、112 条待执行请求 | 支持离线数据流检查；不是 Web 数据集 |
 | 模型层 | **Pending** | 尚无真实准确率、语义引用分数或质量提升 |
 | 效率层 | **Pending** | 尚无真实 token 节省、推理速度或总费用 |
@@ -132,6 +140,8 @@ python experiment/analyze.py --scores work/evaluation/scores.jsonl --candidate c
 | 修改论文排版与公式 | [LaTeX 源码](www_draft.tex) |
 | 排查近邻与创新边界 | [文献核对与待办](文献核对与待办.md) |
 | 收集数据、标注并联调模型 | [实验操作手册](EXPERIMENT_PLAYBOOK.md) |
+| 接入本地模型并恢复运行 | [本地模型运行指南](experiment/LOCAL_INFERENCE.md) |
+| 检查真实网页数据与切分 | [数据验收规范](experiment/DATA_VALIDATION.md) |
 | 运行代码与理解数据格式 | [实验 README](experiment/README.md) |
 | 分析实测结果 | [统计说明](experiment/ANALYSIS.md) · [结果模板](RESULTS_TEMPLATE.md) |
 | 查看已做与未做的事情 | [验证记录](experiment/validation_report.md) · [路线图](ROADMAP.md) |
@@ -152,8 +162,15 @@ scopepack-www/
 └── experiment/
     ├── prototype.py                  上下文选择与预测评分
     ├── analyze.py                    成对分析与分簇 bootstrap
+    ├── run_local.py                  本地生成、窗口预检与运行恢复
+    ├── validate_data.py              数据结构、快照与切分检查
+    ├── local_config.template.json    本地运行器的可执行配置
+    ├── LOCAL_INFERENCE.md            模型接入与首轮联调
+    ├── DATA_VALIDATION.md            数据验收规范
     ├── test_prototype.py             实现约束检查
     ├── test_analyze.py               统计约束检查
+    ├── test_run_local.py             失败、中断恢复及请求绑定检查
+    ├── test_validate_data.py         数据与切分异常检查
     ├── demo.jsonl                    软件样例
     ├── ANALYSIS.md                   统计口径说明
     └── demo_run/                     已准备但未执行的请求

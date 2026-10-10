@@ -2,11 +2,11 @@
 
 [返回首页](README.md) · [配置模板](EXPERIMENT_CONFIG.template.json) · [结果模板](RESULTS_TEMPLATE.md)
 
-本手册将后续工作拆成可验收步骤。模型后端、真实网页数据和强基线仍需准备；本文不是已经执行的实验报告。
+本手册将后续工作拆成可验收步骤。本地模型运行器已实现但待真实权重联调；真实网页数据和强基线仍需准备；本文不是已经执行的实验报告。
 
 ## 1. 固定实验身份
 
-复制配置模板，为每个模型、数据版本和生成重复建立新目录。模板是记录格式，不被程序自动加载。数据/split、权重或服务版本、tokenizer/chat template、压缩配置、提示或生成参数变化时，使用新 run_id。
+复制配置模板，为每个模型、数据版本和生成重复建立新目录。根目录模板是记录格式，不被程序自动加载；本地推理使用单独的 [可执行配置](experiment/local_config.template.json)，详见 [运行指南](experiment/LOCAL_INFERENCE.md)。数据/split、权重或服务版本、tokenizer/chat template、压缩配置、提示或生成参数变化时，使用新 run_id。
 
 必要记录包括公开输入与金标哈希、代码版本、模型、依赖预测器、预算单位、输出预留、重试政策和环境。不要把密钥写入配置或仓库。
 
@@ -18,8 +18,10 @@ work/runs/<run_id>/
 ├── requests.jsonl          prepare 生成的模型输入
 ├── context_diagnostics.jsonl
 ├── manifest.json
-├── raw_responses.jsonl     后端保存，含失败、用量与耗时
-├── predictions.jsonl       评分所用结构化输出
+├── run_manifest.json       本地运行身份、配置和资产哈希
+├── preflight.jsonl         完整输入窗口检查
+├── journal.jsonl           本地运行器原始回复与开始/结果事件
+├── predictions.jsonl       结构化输出 + 原始文本、用量、耗时与状态
 ├── evaluation/scores.jsonl
 └── analysis/               成对报告，不覆盖已有文件
 ```
@@ -55,6 +57,8 @@ work/runs/<run_id>/
 
 这是待实现适配合同，当前规则没有该分类器接口。标签可为 `temporal_scope / eligibility / exception / antecedent / explicit_reference / none`。只接受已存在的 ID；置信度须定义并校准，不能把模型自报分数直接当概率。替代支持、争议和低置信关系不直接转换为硬边。
 
+数据结构、快照字节哈希及明确的切分重叠检查已实现，命令和边界见 [数据验收](experiment/DATA_VALIDATION.md)。语义充分性、许可和近重复仍须人工复核。
+
 ### 数据切分
 
 事件、文档版本、镜像、近重复和成对改写保持同 split。先用开发题定规则，再冻结诊断题；约 150 题只是 pilot 规模建议，不是显著性保证。正式规模根据独立簇数、方差与目标效果决定。
@@ -69,7 +73,7 @@ work/runs/<run_id>/
 - [ ] 解析失败保存 output:null，不破坏 JSONL 格式。
 - [ ] 引用只能指向模型实际可见的句子 ID。
 - [ ] 请求无重复、无漏记；失败仍保留在分母。
-- [ ] 基础设施重试固定并计费，不因答错而反复重问。
+- [ ] 基础设施重试政策固定并记录成本，不因答错而反复重问。本地运行器不自动重试；中断请求保留为失败。
 - [ ] 手工复核正确、错误、拒答和格式失败的评分路径；某类未自然出现时，另建明确标为软件检查的样例，不混入模型成绩。
 
 生成输出固定为 `{answer, citations, abstain}`。证据不足时 answer 为空、citations 为空列表、abstain 为 true。不同压缩方法不得使用不同答案提示。
@@ -82,11 +86,13 @@ work/runs/<run_id>/
 
 原型 BM25 不等于强分数 selection，强打分器和 Provence 尚需适配。先报告弱基线诊断，再完成决定性强对照，不能用名字替代实现。固定预算外报告原生质量—长度曲线；预算适配器在开发集确定。抽象摘要不机械套用原句 ID 的 CER。
 
-下面假设真实数据和本地 tokenizer 已准备、可选依赖已安装；当前包不下载权重，也没有推理服务：
+下面假设真实数据和本地 tokenizer 已准备、可选依赖已安装；当前包不下载权重；本地适配器不提供托管推理服务：
 
 ```bash
 python experiment/prototype.py prepare --data work/data/pilot.jsonl --out work/runs/pilot_modelA_v1 --budgets 512 1024 2048 --tokenizer /absolute/path/to/local-tokenizer
 ```
+
+prepare 后先按 [本地模型指南](experiment/LOCAL_INFERENCE.md) 在新目录生成预测。十条 smoke run 使用运行器保存的请求子集评分；正式统计须显式计划完整矩阵，核对请求数，并把下方 requests/predictions 路径都替换为同次完整运行目录。
 
 ## 5. 从预测到统计
 
