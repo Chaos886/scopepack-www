@@ -2,6 +2,8 @@
 
 更新：2026-10-10。方向已按你的选择确定为**方法论文**。
 
+后续更新：仓库首页现位于 [README.md](README.md)，新增 [实验手册](EXPERIMENT_PLAYBOOK.md)、[运行配置模板](EXPERIMENT_CONFIG.template.json)、[结果模板](RESULTS_TEMPLATE.md) 和 [成对统计工具](experiment/ANALYSIS.md)。软件检查现为 13 项（原型 7 + 统计 6），真实模型实验仍未执行。压缩包保留最初版本，不包含这些后续更新。
+
 工作名称：**ScopePack：面向网页问答的适用条件依赖闭包压缩**。
 
 英文题目：*Preserving Applicability under Context Budgets: Dependency-Closed Compression for Web Question Answering*。
@@ -24,7 +26,7 @@
 
 ## 当前证据边界
 
-已经实际运行的是数据预处理、上下文选择和软件测试。7 项检查全部通过；112 条请求已经准备好，**没有发送给任何大模型**。因此目前没有模型准确率、吞吐率、真实 token 节省或相对基线提升。
+已经实际运行的是数据预处理、上下文选择和软件测试。13 项检查全部通过；112 条请求已经准备好，**没有发送给任何大模型**。因此目前没有模型准确率、吞吐率、真实 token 节省或相对基线提升。
 
 原型默认按正则单元计数，不能把这些单元叫作模型 token。代码支持接入本地 Hugging Face tokenizer，但当前环境没有安装相关可选库，也没有提供模型 tokenizer。正式实验必须补齐这一项。
 

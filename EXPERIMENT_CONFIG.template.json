@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1-record-only",
+  "status": "TEMPLATE_NOT_EXECUTED",
+  "note": "Fill and archive per run. Current CLI does not load this file; null means unresolved, not a default.",
+  "run_id": null,
+  "code_commit": null,
+  "dataset": {"name": null, "revision": null, "split": null, "public_inputs_sha256": null, "gold_sha256": null, "cluster_field": "cluster_id", "license_review": null},
+  "model": {"backend": null, "exact_version": null, "tokenizer_revision": null, "tokenizer_files_sha256": null, "chat_template_sha256": null, "context_window_tokens": null},
+  "prompt": {"version": null, "messages_sha256_manifest": null},
+  "compression": {"methods": ["full", "none", "head", "bm25", "neighbors", "closure"], "budget_unit": "target_model_tokens_REQUIRED_FOR_FORMAL_RUN", "budgets": [512, 1024, 2048], "scorer_version": null, "dependency_predictor_version": null, "thresholds": null},
+  "generation": {"replicate_id": null, "temperature": null, "top_p": null, "seed": null, "reasoning_setting": null, "max_output_tokens": null, "batch_size": null, "concurrency": null},
+  "failure_policy": {"infrastructure_max_retries": null, "format_repair_attempts": 0, "retry_after_wrong_answer": false, "retain_failed_requests_in_denominator": true, "silent_truncation_allowed": false},
+  "analysis": {"primary_candidate": "closure", "primary_baseline": null, "primary_budget": null, "primary_metric": null, "cluster_bootstrap_resamples": 10000, "cluster_bootstrap_seed": 2026, "multiple_comparisons_policy": null, "semantic_support_audit_protocol": null},
+  "cost": {"currency": null, "spending_limit": null, "input_price_per_million_tokens": null, "output_price_per_million_tokens": null, "include_predictor_and_retries": true, "cache_policy": null},
+  "environment": {"python_version": null, "inference_framework_version": null, "hardware": null, "weight_precision": null},
+  "artifacts": {"requests": "requests.jsonl", "raw_responses": "raw_responses.jsonl", "predictions": "predictions.jsonl", "scores": "evaluation/scores.jsonl"}
+}

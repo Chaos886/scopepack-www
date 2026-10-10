@@ -1,39 +1,68 @@
-# Next research milestones
+# ScopePack · Research roadmap
 
-## 1. Establish a viable research question
+[返回首页](README.md) · [实验手册](EXPERIMENT_PLAYBOOK.md) · [结果模板](RESULTS_TEMPLATE.md)
 
-- [ ] Complete direct review of RECOMP, FilCo, DSLR, COMPACT and close 2025–2026 work.
-- [ ] Specify the novelty boundary against Provence and graph-based retrieval/compression.
-- [ ] Confirm the intended WWW edition, track, submission rules and deadline from its CFP.
+## 当前已完成
 
-## 2. Build a real-data pilot
+- [x] 英文方法稿、中文实验设计与近邻文献核对。
+- [x] 6 种上下文设置、预算检查、模型输入与金标隔离。
+- [x] 导入预测后进行答案及严格引用集合代理评分。
+- [x] 成对差值、文档簇 bootstrap、Damage / Rescue 统计模块。
+- [x] 13 项本地软件检查通过。
+- [x] 实验配置、结果报告、数据标注与联调说明。
+- [x] GitHub 私有仓库与项目导航。
 
-- [ ] Collect licensed, frozen Web snapshots; retain source and validity metadata.
-- [ ] Define annotation rules and sufficient evidence sets; independently verify labels.
-- [ ] Keep source/event clusters and all paired variants in one split.
-- [ ] Pilot approximately 150 questions, with development decisions separated from evaluation.
+“已完成”仅针对软件和文档，不代表真实模型实验已完成。
 
-## 3. Connect real inference
+## A · 建立可执行的实验条件
 
-- [ ] Choose exact model versions, available resources and spending limits.
-- [ ] Pin tokenizer and chat template; check complete request length before generation.
-- [ ] Connect the backend; preserve raw outputs, failures, usage and latency.
-- [ ] Validate ten requests end to end before increasing run size.
+- [ ] 选定模型精确版本、推理后端、GPU/API 资源及费用上限。
+- [ ] 固定 tokenizer、聊天模板、输出上限、生成参数和重试政策。
+- [ ] 接入后端，记录原始响应、错误、token 用量与耗时。
+- [ ] 完成 10 条真实请求联调，禁止金标泄漏和静默截断。
 
-## 4. Test the mechanism
+**验收：** 填写后的配置、可追溯请求及原始回复、解析与评分日志。
 
-- [ ] Implement Provence and other required strong comparators.
-- [ ] Compare identical scores/optimizer with and without dependency edges.
-- [ ] Compare neighbor expansion and annotated versus predicted dependency graphs.
-- [ ] Measure actual token budgets, complete evidence retention, answer scores and failures.
-- [ ] Add independent semantic support auditing and cluster-bootstrap intervals.
-- [ ] Include compression and graph-prediction cost in total system measurements.
+## B · 判断真实现象与创新边界
 
-## 5. Decide whether to scale and submit
+- [ ] 直接阅读 RECOMP、FilCo、DSLR、COMPACT 及近邻 2025–2026 工作。
+- [ ] 对 Provence 和图式压缩明确已知机制与待验证差异。
+- [ ] 收集可合法使用的网页快照，区分抓取时间和有效时间。
+- [ ] 完成约 150 题 pilot，独立复核答案、充分证据集和关系标签。
+- [ ] 按事件/文档簇切分，所有成对变体与近重复保持同 split。
 
-- [ ] Stop or revise the hypothesis if a strong baseline or neighbor expansion explains the gain.
-- [ ] Lock the formal test split and analysis before final comparisons.
-- [ ] Rewrite contributions and conclusions around observed evidence, including failures.
-- [ ] Convert to the required ACM template and verify anonymity and artifact rules.
+**验收：** 数据卡、标注分歧与裁决记录、固定 split 文件、来源许可说明。
 
-None of the unchecked items is claimed complete. The repository currently provides the draft and offline scaffold only.
+**退出条件：** 若现象只在人工陷阱存在，或近邻已实现同一机制，应缩小/修改问题。
+
+## C · 检验方法是否值得做
+
+- [ ] 接入 Provence 等强基线，记录原生曲线和预算适配方式。
+- [ ] 同分数、同优化器、同预算，比较加边与去边。
+- [ ] 比较邻句扩展、oracle 图和预测图；定位过大闭包与遗漏条件。
+- [ ] 检验移远条件、词语改写、未见来源域和无条件问题。
+- [ ] 报告质量差值、置信区间、失败率、Damage / Rescue，评估语义引用。
+- [ ] 将依赖预测、选择、生成、缓存和重试纳入成本与耗时。
+
+**验收：** Pilot 表、统计报告、错误分类、实际选择文本与原始模型输出。
+
+**退出条件：** 若邻句扩展或强剪枝解释全部收益，不将弱基线差值包装成普遍优势。
+
+## D · 锁定正式评估
+
+- [ ] 根据 pilot 方差、簇数及最小有意义效果确定规模。
+- [ ] 预先指定主预算、主对照、主指标及多重比较政策。
+- [ ] 锁定测试集和分析配置后运行正式矩阵。
+- [ ] 分开报告数据采样区间、生成种子波动和标注不确定性。
+- [ ] 自然网页、公开 benchmark 子集、受控变体分开报告。
+
+**验收：** 独立运行归档、原始输出与哈希、主结果和失败案例、完整成本。
+
+## E · 投稿前收口
+
+- [ ] 从官方 CFP 核验目标 WWW 届次、track、页数、匿名与附录政策。
+- [ ] 根据观测结果重写摘要、贡献、讨论和结论，消除未支撑主张。
+- [ ] 补齐规范文献元数据、ACM 模板转换和 PDF 编译/版面核验。
+- [ ] 核验数据许可、发布范围、匿名链接及适用 AI 使用披露政策。
+
+**验收：** 真实结果稿、可复现实验包、可查看的提交版 PDF。本清单不保证录用。
