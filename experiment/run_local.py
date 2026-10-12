@@ -16,7 +16,8 @@ import re
 import time
 import uuid
 
-from prototype import digest, nodes_of, public_input, render, SYSTEM, write_jsonl
+from prototype import (digest, nodes_of, public_input, render, SYSTEM,
+                       validate_request_groups, write_jsonl)
 from validate_data import (FIXTURE, file_sha256, nonempty, read_rows, require,
                            strict_json, validate_dataset)
 
@@ -164,7 +165,7 @@ class HFBackend:
 
 
 def verify_requests(requests, samples, backend, allow_fixture_units=False):
-    require(bool(requests), 'No requests')
+    validate_request_groups(requests)
     samples = {s['id']: s for s in samples}
     ids = set()
     for request in requests:
@@ -351,7 +352,7 @@ def main():
                 'prepared_requests_file_sha256': file_sha256(args.requests),
                 'max_requests': args.max_requests, 'allow_fixture_units': args.allow_fixture_units,
                 'code_sha256': {name: file_sha256(Path(__file__).with_name(name))
-                                for name in ('run_local.py', 'prototype.py', 'validate_data.py')},
+                                for name in ('run_local.py', 'prototype.py', 'validate_data.py', 'deduction.py')},
                 'warning': 'Fixture data/regex budgets cannot establish research performance.'
                            if any(s['provenance'] == FIXTURE for s in samples) else None}
     result = run_batch(chosen, backend, args.out, identity, config['max_context_tokens'],

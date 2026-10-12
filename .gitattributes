@@ -1,0 +1,3 @@
+# Keep checked-in source/data hashes stable across Windows and Unix checkouts.
+* text=auto eol=lf
+*.zip binary

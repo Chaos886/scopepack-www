@@ -2,7 +2,7 @@
 
 更新：2026-10-10。方向已按你的选择确定为**方法论文**。
 
-后续更新：仓库首页现位于 [README.md](README.md)，已补充 [实验手册](EXPERIMENT_PLAYBOOK.md)、[本地模型运行指南](experiment/LOCAL_INFERENCE.md)、[数据验收规范](experiment/DATA_VALIDATION.md)、[结果模板](RESULTS_TEMPLATE.md) 和 [成对统计工具](experiment/ANALYSIS.md)。软件检查现为 27 项（原型 7 + 统计 6 + 运行器 9 + 数据 5）；本地适配器待真实权重联调，真实模型实验仍未执行。压缩包保留最初版本，不包含这些后续更新。
+后续更新：仓库首页现位于 [README.md](README.md)，已补充 [实验手册](EXPERIMENT_PLAYBOOK.md)、[本地模型运行指南](experiment/LOCAL_INFERENCE.md)、[数据验收规范](experiment/DATA_VALIDATION.md)、[结果模板](RESULTS_TEMPLATE.md) 和 [成对统计工具](experiment/ANALYSIS.md)。新增 [受控演绎评测](experiment/DEDUCTION.md) 与 60 道合成开发题。软件检查现为 46 项（原型 7 + 统计 6 + 运行器 9 + 数据 5 + 演绎 12 + 运行记录 7）；本地适配器待真实权重联调，真实模型实验仍未执行。压缩包保留最初版本，不包含这些后续更新。
 
 工作名称：**ScopePack：面向网页问答的适用条件依赖闭包压缩**。
 
@@ -26,7 +26,7 @@
 
 ## 当前证据边界
 
-已经实际运行的是数据预处理、上下文选择、结构检查和软件测试。27 项检查全部通过；112 条请求已经准备好，**没有发送给任何大模型**。因此目前没有模型准确率、吞吐率、真实 token 节省或相对基线提升。
+已经实际运行的是数据预处理、上下文选择、结构/逻辑检查和软件测试。46 项检查全部通过；原始 112 条请求及新增演绎矩阵的 660 条请求已经准备好，**没有发送给任何大模型**。因此目前没有模型准确率、吞吐率、真实 token 节省或相对基线提升。
 
 原型默认按正则单元计数，不能把这些单元叫作模型 token。代码支持接入本地 Hugging Face tokenizer，但当前环境没有安装相关可选库，也没有提供模型 tokenizer。正式实验必须补齐这一项。
 

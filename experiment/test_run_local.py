@@ -138,7 +138,8 @@ class RunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Messages differ'):
             verify_requests(altered, samples, FakeBackend(), True)
         altered = copy.deepcopy(requests)
-        altered[0]['budget_unit'] = 'target_tokenizer'
+        for row in altered:
+            row['budget_unit'] = 'target_tokenizer'
         with self.assertRaisesRegex(ValueError, 'count mismatch'):
             verify_requests(altered, samples, FakeBackend(), True)
 
@@ -153,7 +154,7 @@ class RunnerTests(unittest.TestCase):
         predictions[0]['request_sha256'] = 'different request'
         write_jsonl(pred_file, predictions)
         with self.assertRaisesRegex(ValueError, 'fingerprint mismatch'):
-            evaluate(self.data, request_file, pred_file, self.root / 'score')
+            evaluate(self.data, request_file, pred_file, self.root / 'score_mismatch')
 
 
 if __name__ == '__main__':

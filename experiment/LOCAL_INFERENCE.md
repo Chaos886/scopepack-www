@@ -92,7 +92,7 @@ python experiment/run_local.py --config work/local-config.json --data experiment
 
 模型/tokenizer 文件、代码、数据、请求、配置或环境指纹改变时拒绝恢复。`journal.jsonl` 是恢复依据；损坏或半写入 JSON 行会使恢复停止，保留原文件人工审查，不静默丢行。异常断电可能遗留 `.running.lock`：只有确认旧进程已停止后，手动移除该锁文件再恢复；不删除日志或结果。
 
-请求 ID 仍不是全局唯一实验身份。归档 `run_id + request_id + request_sha256` 及整个 manifest。新运行器的预测在评分时会校验请求哈希；旧式外部预测仍可导入，但没有这个额外绑定保证。
+请求 ID 仍不是全局唯一实验身份。归档 `run_id + request_id + request_sha256` 及整个 manifest。新运行器的预测在评分时会校验请求哈希与统一 run_id，并生成评分身份清单；旧式外部预测仍可导入，但没有这些完整绑定保证。准备/评分也拒绝覆盖旧文件，详见 [运行记录](RUN_INTEGRITY.md)。
 
 ## 6. 从联调到论文实验
 

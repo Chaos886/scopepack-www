@@ -11,9 +11,11 @@ python prototype.py prepare --data demo.jsonl --out ../work/demo_run
 python -m unittest discover -s . -p "test_*.py" -v
 ```
 
-已实际验证：27 项测试通过（7 项原型约束 + 6 项统计约束 + 9 项运行器约束 + 5 项数据验收约束）；生成 112 条请求。`demo_run/manifest.json` 状态为 `PREPARED_NOT_EXECUTED`。
+已实际验证：46 项测试通过（7 项原型约束 + 6 项统计约束 + 9 项运行器约束 + 5 项数据验收约束 + 12 项演绎约束 + 7 项运行记录约束）；生成 112 条请求。`demo_run/manifest.json` 状态为 `PREPARED_NOT_EXECUTED`。
 
 默认预算 `[64,128,256]` 是正则计数单元，标记为 `regex_units_NOT_LLM_TOKENS`，**不是 LLM token**。这种模式只用于断言预算算法、数据流与评分行为，不用于论文效率曲线。
+
+新增 [演绎诊断](DEDUCTION.md) 提供 60 道合成开发题，独立于原来的 8 个问答样例。可用原 prepare → run_local → evaluate 流程执行，额外用 deduction.py report 查看证明保留、引用支持、逐深度和配对世界表现。真实 LLM 尚未运行。
 
 ## 2. 文件如何流转
 
@@ -66,7 +68,7 @@ data.jsonl + requests.jsonl + predictions.jsonl
 
 代码的 `public_input()` 仅复制问题与文档必要字段。改变 gold 或 task_type 不影响选择；测试已经验证。新增训练/测试信息字段时应继续使用白名单，别把整个 sample 传给模型。
 
-prepare/evaluate 现在自动执行 basic 数据检查。真实网页的来源、时间、快照字节与切分验收见 [DATA_VALIDATION.md](DATA_VALIDATION.md)；web 检查需要单独运行。
+prepare/evaluate 现在自动执行 basic 数据检查。带 deduction 元数据的样本还会自动核验句子/查询与形式规则的一致性、逻辑标签和充分证明。此元数据由 public_input 排除。真实网页的来源、时间、快照字节与切分验收见 [DATA_VALIDATION.md](DATA_VALIDATION.md)；web 检查需要单独运行。
 
 ## 4. 已实现的选择方法
 
@@ -145,6 +147,8 @@ python prototype.py evaluate --data real_data.jsonl --requests run_001/requests.
 ```
 
 对于 demo 数据则把 `real_data.jsonl` 换为 `demo.jsonl`，requests/predictions 路径同步换为同次 demo 运行目录。没有预测时不要编造文件来填结果表。
+
+准备/评分会拒绝覆盖已有同名产物，并检查重复矩阵、混合预算单位及不同 run_id。评分额外生成 `evaluation_manifest.json`，绑定数据、请求、预测、代码与分数文件哈希，见 [运行记录](RUN_INTEGRITY.md)。
 
 输出 `scores.jsonl` 为逐请求结果；`summary.json` 按 method 和 budget 汇总，所有率为 0–100 百分数：
 

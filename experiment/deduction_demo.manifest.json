@@ -1,0 +1,35 @@
+{
+  "status": "SYMBOLIC_FIXTURE_VALIDATED_NO_LLM_INFERENCE",
+  "version": "scopepack-ground-deduction-v1",
+  "samples": 60,
+  "clusters": 4,
+  "labels": {
+    "entailed": 20,
+    "contradicted": 20,
+    "unknown": 20
+  },
+  "template_depths": {
+    "0": 12,
+    "1": 12,
+    "2": 12,
+    "3": 12,
+    "4": 12
+  },
+  "limits": [
+    "Controlled templates, not natural Web data or broad intelligence measurement.",
+    "Renaming atoms does not create independent reasoning templates.",
+    "Unknown has no finite proof depth; template_depth is only a construction setting."
+  ],
+  "seed": 2026,
+  "families": 4,
+  "depths": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "split": "dev",
+  "data_sha256": "348a6943c95304783dcace70ece0481e859894bd9956b51fbda75f9ea78ff5b6",
+  "generator_sha256": "8502d58f817cc1f0cd85f85392ac5e3c8100dd7842d865c854181d89c58213b2"
+}

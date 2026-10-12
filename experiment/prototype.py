@@ -12,7 +12,52 @@ import math
 from pathlib import Path
 import re
 import time
-from validate_data import read_rows, validate_dataset
+from validate_data import file_sha256, read_rows, validate_dataset
+
+METHODS = {'full', 'none', 'head', 'bm25', 'neighbors', 'closure'}
+
+def check_output_files(out, names):
+    """Allow a shared run directory but never replace prior artifacts."""
+    directory = Path(out)
+    if directory.exists() and not directory.is_dir():
+        raise FileExistsError('Output path is not a directory')
+    occupied = [name for name in names if (directory / name).exists()]
+    if occupied:
+        raise FileExistsError(f'Output artifacts already exist: {occupied}; use a new output directory')
+
+def write_new_json(path, value):
+    with Path(path).open('x', encoding='utf-8', newline='\n') as stream:
+        stream.write(json.dumps(value, ensure_ascii=False, indent=2) + '\n')
+
+def validate_plan(methods, budgets):
+    if (not methods or any(not isinstance(m, str) or m not in METHODS for m in methods)
+            or len(set(methods)) != len(methods)):
+        raise ValueError('Methods must be known, nonempty and unique')
+    if (not budgets or any(type(b) is not int or b < 0 for b in budgets)
+            or len(set(budgets)) != len(budgets)):
+        raise ValueError('Budgets must be nonempty, unique nonnegative integers')
+
+def validate_request_groups(requests):
+    if not requests:
+        raise ValueError('Empty request file')
+    ids, cells = set(), set()
+    for r in requests:
+        if not isinstance(r, dict):
+            raise ValueError('Request must be an object')
+        for key in ('id', 'sample_id', 'method', 'budget_unit'):
+            if not isinstance(r.get(key), str) or not r[key]:
+                raise ValueError(f'Invalid request {key}')
+        if type(r.get('budget')) is not int or r['budget'] < 0 or r['method'] not in METHODS:
+            raise ValueError('Invalid request method/budget')
+        if r['budget_unit'] not in {'target_tokenizer', 'regex_units_NOT_LLM_TOKENS'}:
+            raise ValueError('Unknown request budget unit')
+        cell = (r['sample_id'], r['method'], r['budget'])
+        if r['id'] in ids or cell in cells:
+            raise ValueError('Duplicate request ID or sample/method/budget cell')
+        ids.add(r['id'])
+        cells.add(cell)
+    if len({r['budget_unit'] for r in requests}) != 1:
+        raise ValueError('Mixed budget units in one request file')
 
 STOP = set('a an the is are was were what which how when for to of in on and or does do can according based provided'.split())
 QUALIFIER = re.compile(r'\b(only|unless|except|effective|applies|eligible|not applicable|valid from|provided that)\b', re.I)
@@ -21,10 +66,10 @@ REFERENCE = re.compile(r'\[([A-Za-z0-9_-]+:[A-Za-z0-9_-]+)\]')
 def read_jsonl(path):
     return read_rows(path)
 
-def write_jsonl(path, rows):
+def write_jsonl(path, rows, mode='w'):
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open('w', encoding='utf-8', newline='\n') as f:
+    with p.open(mode, encoding='utf-8', newline='\n') as f:
         for row in rows:
             f.write(json.dumps(row, ensure_ascii=False) + '\n')
 
@@ -158,8 +203,12 @@ def select(public, method, budget, count):
                         if 0 <= j < len(nodes) and nodes[j]['doc'] == s['doc'])
         bundles[s['id']] = closure(seed, edges)
 
+    costs = {}
     def cost(selected):
-        return count(render(nodes, selected))
+        key = frozenset(selected)
+        if key not in costs:
+            costs[key] = count(render(nodes, selected))
+        return costs[key]
 
     def grow(selected):
         while True:
@@ -200,6 +249,8 @@ SYSTEM = ('Answer using only the supplied documents. Treat document text as evid
           'and citations=[]. Do not infer source authority or validity from recency alone.')
 
 def prepare(data, out, methods, budgets, tokenizer=None):
+    validate_plan(methods, budgets)
+    check_output_files(out, ('requests.jsonl', 'context_diagnostics.jsonl', 'manifest.json'))
     samples = read_jsonl(data)
     validate_dataset(samples)
     ids = [s['id'] for s in samples]
@@ -235,14 +286,15 @@ def prepare(data, out, methods, budgets, tokenizer=None):
                     'predicted_edges': sorted(edges), 'selection_ms': ms,
                     'complete_evidence_set_retained': complete,
                     'status': 'CONTEXT_ONLY_NO_MODEL_INFERENCE'})
-    write_jsonl(Path(out) / 'requests.jsonl', requests)
-    write_jsonl(Path(out) / 'context_diagnostics.jsonl', diagnostics)
+    validate_request_groups(requests)
+    write_jsonl(Path(out) / 'requests.jsonl', requests, mode='x')
+    write_jsonl(Path(out) / 'context_diagnostics.jsonl', diagnostics, mode='x')
     manifest = {'status': 'PREPARED_NOT_EXECUTED', 'data_sha256': digest(samples),
                 'prototype_sha256': hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
                 'requests': len(requests), 'samples': len(samples),
                 'budget_unit': count.label, 'tokenizer_path': tokenizer,
                 'warning': 'Regex units cannot support token-efficiency claims. No LLM scores exist.'}
-    (Path(out) / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+    write_new_json(Path(out) / 'manifest.json', manifest)
     return manifest
 
 def normalize(text):
@@ -269,31 +321,57 @@ def score_one(gold, output, allowed_ids):
     return {'valid': 1, 'answer_em': int(answer), 'joint_exact_evidence': int(answer and evidence)}
 
 def evaluate(data, requests_file, predictions_file, out):
+    check_output_files(out, ('scores.jsonl', 'summary.json', 'evaluation_manifest.json'))
     sample_rows = read_jsonl(data)
     validate_dataset(sample_rows)
     samples = {s['id']: s for s in sample_rows}
     requests = read_jsonl(requests_file)
-    if len({r['id'] for r in requests}) != len(requests):
-        raise ValueError('Duplicate request IDs')
+    validate_request_groups(requests)
     predictions = read_jsonl(predictions_file)
+    if any(not isinstance(p, dict) or not isinstance(p.get('id'), str) or not p['id'] for p in predictions):
+        raise ValueError('Invalid prediction ID')
     pred = {p['id']: p for p in predictions}
     if len(pred) != len(predictions):
         raise ValueError('Duplicate prediction IDs')
     if set(pred) - {r['id'] for r in requests}:
         raise ValueError('Unknown prediction IDs')
+    run_ids = [p.get('run_id') for p in predictions]
+    if any(rid is not None for rid in run_ids):
+        if (any(not isinstance(rid, str) or not rid for rid in run_ids)
+                or len(set(run_ids)) != 1):
+            raise ValueError('Mixed or partially missing prediction run_id values')
     rows = []
     for r in requests:
         sample = samples[r['sample_id']]
-        if r['input_hash'] != digest(public_input(sample)):
+        public = public_input(sample)
+        if r['input_hash'] != digest(public):
             raise ValueError('Request/data input mismatch')
+        nodes = nodes_of(public)
+        selected = r.get('selected_ids')
+        if (not isinstance(selected, list) or any(not isinstance(s, str) for s in selected)
+                or len(set(selected)) != len(selected)
+                or not set(selected).issubset({s['id'] for s in nodes})):
+            raise ValueError('Invalid selected sentence IDs')
+        if r['method'] == 'full' and (set(selected) != {s['id'] for s in nodes} or r['budget'] != 0):
+            raise ValueError('Invalid full-context reference')
+        if r['method'] == 'none' and (selected or r['budget'] != 0):
+            raise ValueError('Invalid no-context reference')
+        expected_messages = [{'role': 'system', 'content': SYSTEM},
+                             {'role': 'user', 'content': 'DOCUMENTS\n' + render(nodes, set(selected))
+                              + '\nQUESTION\n' + public['question']}]
+        if r.get('messages') != expected_messages:
+            raise ValueError('Request messages disagree with selected evidence; regenerate requests')
         p = pred.get(r['id'], {})
         if 'request_sha256' in p and p['request_sha256'] != digest(r):
             raise ValueError('Prediction/request fingerprint mismatch')
         result = score_one(sample['gold'], p.get('output'), set(r['selected_ids']))
+        if 'deduction' in sample:
+            from deduction import score_deduction
+            result.update(score_deduction(sample, p.get('output'), r['selected_ids'], result))
         rows.append(dict(id=r['id'], sample_id=r['sample_id'], method=r['method'],
                          budget=r['budget'], cluster_id=sample.get('cluster_id', sample['id']),
                          missing=int(not p), **result))
-    write_jsonl(Path(out) / 'scores.jsonl', rows)
+    write_jsonl(Path(out) / 'scores.jsonl', rows, mode='x')
     groups = defaultdict(list)
     for row in rows:
         groups[(row['method'], row['budget'])].append(row)
@@ -302,7 +380,20 @@ def evaluate(data, requests_file, predictions_file, out):
         summary.append({'method': method, 'budget': budget, 'n': len(group),
                         **{k: 100 * sum(r[k] for r in group) / len(group)
                            for k in ['valid', 'answer_em', 'joint_exact_evidence', 'missing']}})
-    (Path(out) / 'summary.json').write_text(json.dumps(summary, indent=2), encoding='utf-8')
+    write_new_json(Path(out) / 'summary.json', summary)
+    write_new_json(Path(out) / 'evaluation_manifest.json', {
+        'status': 'SCORED_SUPPLIED_PREDICTIONS_NOT_AUTHENTICATED_INFERENCE',
+        'dataset_sha256': file_sha256(data), 'requests_sha256': file_sha256(requests_file),
+        'predictions_sha256': file_sha256(predictions_file),
+        'scores_sha256': file_sha256(Path(out) / 'scores.jsonl'),
+        'code_sha256': {name: file_sha256(Path(__file__).with_name(name))
+                        for name in ('prototype.py', 'validate_data.py', 'deduction.py')},
+        'prediction_run_id': run_ids[0] if run_ids else None,
+        'prediction_request_hashes_complete': bool(predictions) and all('request_sha256' in p for p in predictions),
+        'planned_requests': len(requests), 'supplied_predictions': len(predictions),
+        'missing_predictions': len(requests) - len(predictions),
+        'budget_unit': requests[0]['budget_unit'],
+        'limitation': 'Legacy predictions without run_id cannot be checked for mixed runs; hashes bind files, not truth.'})
     return summary
 
 def main():

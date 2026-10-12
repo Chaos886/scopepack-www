@@ -6,7 +6,7 @@
 
 *Preserving Applicability under Context Budgets: Dependency-Closed Compression for Web Question Answering*
 
-[论文初稿](www_draft.md) · [研究方案](研究与实验方案.md) · [开始实验](EXPERIMENT_PLAYBOOK.md) · [路线图](ROADMAP.md) · [结果模板](RESULTS_TEMPLATE.md)
+[论文初稿](www_draft.md) · [研究方案](研究与实验方案.md) · [开始实验](EXPERIMENT_PLAYBOOK.md) · [演绎评测](experiment/DEDUCTION.md) · [路线图](ROADMAP.md) · [结果模板](RESULTS_TEMPLATE.md)
 
 </div>
 
@@ -16,11 +16,11 @@
 > **研究工作稿，真实模型结果待完成。** 当前交付了方法设计、离线原型、本地推理运行器与统计工具；没有声称优于现有方法。默认样例使用正则计数单元，不能用于模型 token 效率结论。
 
 <table>
-<tr><th align="center">验证</th><th align="center">样例</th><th align="center">请求</th><th align="center">阶段</th></tr>
+<tr><th align="center">验证</th><th align="center">样例</th><th align="center">评测</th><th align="center">阶段</th></tr>
 <tr>
-<td align="center"><b>27</b><br/>本地测试通过</td>
-<td align="center"><b>8</b><br/>软件样例</td>
-<td align="center"><b>112</b><br/>待执行请求</td>
+<td align="center"><b>46</b><br/>本地测试通过</td>
+<td align="center"><b>8 + 60</b><br/>两类软件样例</td>
+<td align="center"><b>2</b><br/>问答与演绎</td>
 <td align="center"><b>准备阶段</b><br/>未运行模型</td>
 </tr>
 </table>
@@ -63,11 +63,21 @@ flowchart TB
 | BM25 分数、英文规则依赖、闭包选择、来源保留 | 学习型依赖预测、真实网页解析和跨页指代 |
 | full / none / head / bm25 / neighbors / closure | Provence、LongLLMLingua、LLMLingua-2 等强基线 |
 | 本地 HF 运行器、窗口预检、原始输出与恢复 | 真实权重联调、模型兼容性、官方 benchmark 指标 |
+| 受控演绎题、符号证明核验、压缩后证明保留诊断 | 真实 LLM 演绎表现、未见推理模板、自然网页有效性 |
+| 输出保护、评分来源清单、运行身份与矩阵检查 | 实际推理与外部成绩的真实性核验 |
 | 数据结构、快照哈希及切分重叠检查 | 真实网页采集、独立标注与近重复审查 |
 | 成对差值、cluster bootstrap、Damage / Rescue | 语义引用审查、实际费用与端到端性能 |
 
 > [!NOTE]
 > 闭包可行性不等于语义充分性。当前图由规则预测；错误依赖可能遗漏条件或浪费预算。新颖性及真实数据有效性仍需实验证据。
+
+### 现在是否测到了演绎能力？
+
+原始问答的正确答案和引用集合只能间接反映推理。新增模块明确给出事实、方向性规则和查询，用独立符号检查核验结论：**能推出 / 能推出显式否定 / 信息不足**。当前包含 60 道受控开发题，覆盖直接读取和 1–4 步合取推导。
+
+报告区分答案准确率、必要证明是否被压缩保留、引用是否足以推出答案，以及三种配对世界是否全部答对。它评估指定规则语义下的行为，不能证明模型的内部思考过程或通用逻辑能力。**还没有真实 LLM 演绎分数。**
+
+入口：[演绎诊断与命令](experiment/DEDUCTION.md) · [英文实验设计补充](DEDUCTION_STUDY.md)
 
 ## 03 · 两分钟运行离线流程
 
@@ -80,9 +90,14 @@ python experiment/validate_data.py --data experiment/demo.jsonl
 # 准备上下文与模型请求，不调用模型
 python experiment/prototype.py prepare --data experiment/demo.jsonl --out work/demo_run
 
-# 验证预算、金标隔离、评分和统计约束
+# 核对受控演绎题的规则、文本与金标
+python experiment/deduction.py inspect --data experiment/deduction_demo.jsonl
+
+# 验证预算、金标隔离、评分、逻辑求解和统计约束
 python -m unittest discover -s experiment -p "test_*.py" -v
 ```
+
+重复运行请使用新的输出目录；准备和评分会拒绝覆盖已有产物。详见 [运行记录与结果保护](experiment/RUN_INTEGRITY.md)。
 
 生成目录中，`requests.jsonl` 是模型输入，`context_diagnostics.jsonl` 是评测侧诊断，`manifest.json` 记录准备状态。**仅将 requests 中的 messages 交给答案模型。**
 
@@ -125,8 +140,8 @@ python experiment/analyze.py --scores work/evaluation/scores.jsonl --candidate c
 
 | 检查层 | 当前证据 | 结论范围 |
 |---|---|---|
-| 软件层 | 27 项本地检查通过 | 支持实现约束；不是模型能力分数 |
-| 输入层 | 8 个软件样例、112 条待执行请求 | 支持离线数据流检查；不是 Web 数据集 |
+| 软件层 | 46 项本地检查通过 | 支持实现约束；不是模型能力分数 |
+| 输入层 | 8 个原型样例 + 60 道合成演绎开发题 | 支持离线检查和受控任务设计；不是自然 Web 数据集 |
 | 模型层 | **Pending** | 尚无真实准确率、语义引用分数或质量提升 |
 | 效率层 | **Pending** | 尚无真实 token 节省、推理速度或总费用 |
 
@@ -143,6 +158,8 @@ python experiment/analyze.py --scores work/evaluation/scores.jsonl --candidate c
 | 接入本地模型并恢复运行 | [本地模型运行指南](experiment/LOCAL_INFERENCE.md) |
 | 检查真实网页数据与切分 | [数据验收规范](experiment/DATA_VALIDATION.md) |
 | 运行代码与理解数据格式 | [实验 README](experiment/README.md) |
+| 核对是否覆盖演绎能力 | [演绎评测说明](experiment/DEDUCTION.md) · [英文实验补充](DEDUCTION_STUDY.md) |
+| 避免覆盖或混用实验结果 | [运行记录与结果保护](experiment/RUN_INTEGRITY.md) |
 | 分析实测结果 | [统计说明](experiment/ANALYSIS.md) · [结果模板](RESULTS_TEMPLATE.md) |
 | 查看已做与未做的事情 | [验证记录](experiment/validation_report.md) · [路线图](ROADMAP.md) |
 | 获取最初版本存档 | [初稿压缩包](WWW初稿包.zip)（不含后续更新） |
@@ -157,16 +174,23 @@ scopepack-www/
 ├── www_draft.md / www_draft.tex       论文初稿
 ├── EXPERIMENT_PLAYBOOK.md             实验操作手册
 ├── EXPERIMENT_CONFIG.template.json    运行配置记录模板
+├── DEDUCTION_STUDY.md                 演绎诊断的英文实验设计
 ├── RESULTS_TEMPLATE.md               结果与证据记录模板
 ├── ROADMAP.md                        阶段任务与退出条件
 └── experiment/
     ├── prototype.py                  上下文选择与预测评分
+    ├── deduction.py                  受控题生成、符号证明与诊断报告
+    ├── deduction_demo.jsonl          60 道合成演绎开发题
+    ├── DEDUCTION.md                  演绎能力测量范围与操作入口
+    ├── test_deduction.py             逻辑正确性与端到端检查
     ├── analyze.py                    成对分析与分簇 bootstrap
     ├── run_local.py                  本地生成、窗口预检与运行恢复
     ├── validate_data.py              数据结构、快照与切分检查
     ├── local_config.template.json    本地运行器的可执行配置
     ├── LOCAL_INFERENCE.md            模型接入与首轮联调
     ├── DATA_VALIDATION.md            数据验收规范
+    ├── RUN_INTEGRITY.md              输出保护、评分身份与成本缓存
+    ├── test_artifacts.py             运行记录与矩阵约束测试
     ├── test_prototype.py             实现约束检查
     ├── test_analyze.py               统计约束检查
     ├── test_run_local.py             失败、中断恢复及请求绑定检查
@@ -184,7 +208,7 @@ scopepack-www/
 
 **Research first. Evidence before claims.**
 
-研究期间保持私有 · 尚未选择开源许可证 · WWW 届次与 CFP 待核验<br/>
+研究工作稿 · 尚未选择开源许可证 · WWW 届次与 CFP 待核验<br/>
 LaTeX 尚未成功编译验证；当前排版不是已核验的 ACM 投稿模板。
 
 </div>

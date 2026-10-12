@@ -153,6 +153,10 @@ def validate_dataset(rows, profile='basic', snapshot_root=None):
             seen_sets.add(key)
         require((not answers and not sets) if gold['abstain'] else (bool(answers) and bool(sets)),
                 f'{label}: answerability contradicts gold answers/evidence')
+        if 'deduction' in row:
+            # Lazy import keeps basic validation independent of the optional track.
+            from deduction import validate_program
+            validate_program(row)
     return {'status': 'STRUCTURE_VALID_NOT_SEMANTICALLY_CERTIFIED', 'profile': profile,
             'samples': len(rows), 'clusters': len({r['cluster_id'] for r in rows}),
             'documents': document_count, 'sentences': sentence_count, 'splits': split_counts,
